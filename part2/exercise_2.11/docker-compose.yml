@@ -1,0 +1,113 @@
+version: "3.7"
+services:
+# php - run php-fpm
+  php:
+    build: &php-build
+      context: ./.dev/docker-config/php-prod-craft
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "mariadb"
+    env_file: &env
+      - ./.env
+    expose:
+      - "9000"
+    init: true
+    tty: true
+    volumes: &php-volumes
+      - ./composer.json:/var/www/project/cms/composer.json
+      - ./composer.lock:/var/www/project/cms/composer.lock
+      - ./plugins:/var/www/project/cms/plugins
+      - ./craft:/var/www/project/cms/craft
+      - ./.env:/var/www/project/cms/.env
+
+      - ./src/config:/var/www/project/cms/config
+      - ./src/modules:/var/www/project/cms/modules
+      - ./src/scripts:/var/www/project/cms/scripts
+
+      - ./web/index.php:/var/www/project/cms/web/index.php
+      - ./web/flush-op.php:/var/www/project/cms/web/flush-op.php
+      - ./web/lagkage.php:/var/www/project/cms/web/lagkage.php
+
+      - ./.dev/docker-config/php-prod-craft/zzz-docker-php-fpm.conf:/usr/local/etc/php-fpm.d/zzz-docker-php-fpm.conf
+
+      - ./src/templates:/var/www/project/cms/templates
+      - ./src/fonts:/var/www/project/cms/web/fonts
+      - ./src/translations:/var/www/project/cms/translations
+      - ./src/assets:/var/www/project/cms/web/assets
+      - ./logs/craft:/var/www/project/cms/storage/logs:delegated
+      - ./src/migrations:/var/www/project/cms/migrations
+      - ./vendor:/var/www/project/cms/vendor:delegated
+
+  # nginx - web server
+  nginx:
+    build:
+      context: ./.dev/docker-config/nginx
+      dockerfile: ./Dockerfile
+    env_file:
+      *env
+    init: true
+    ports:
+      - "8002:80"
+    volumes:
+      *php-volumes
+
+  # php - run php-fpm with xdebug
+  php_xdebug:
+    build:
+      context: ./.dev/docker-config/php-dev-craft
+      dockerfile: ./Dockerfile
+    depends_on:
+      - "php"
+    env_file:
+      *env
+    expose:
+      - "9000"
+    init: true
+    tty: true
+    volumes:
+      *php-volumes
+
+  # queue - runs queue jobs via php craft queue/listen
+  queue:
+    build:
+      *php-build
+    command: sh /var/www/project/run_queue.sh
+    depends_on:
+      - "php"
+    env_file:
+      *env
+    init: true
+    tty: true
+    volumes:
+      *php-volumes
+
+  # mariadb - database
+  mariadb:
+    build:
+      context: ./.dev/docker-config/mariadb
+      dockerfile: ./Dockerfile
+    env_file:
+      *env
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: adminpwd
+      MYSQL_DATABASE: craftdb
+    init: true
+    ports:
+      - "4306:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+
+  # vite - frontend build system
+  redis:
+    image: redis:6.2.5
+    ports:
+      - 6379:6379
+
+
+volumes:
+  db-data:
+  cpresources:
+  storage:
+  files:
