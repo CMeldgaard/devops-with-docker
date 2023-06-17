@@ -8,7 +8,7 @@ COPY . .
 
 RUN go build
 
-RUN test ./...
+RUN go test ./...
 
 ENV REQUEST_ORIGIN=http://localhost:5000
 
