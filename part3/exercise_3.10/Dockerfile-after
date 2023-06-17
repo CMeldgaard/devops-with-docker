@@ -1,0 +1,8 @@
+FROM alpine
+
+WORKDIR /usr/src/app
+
+COPY fetch.sh .
+RUN apk add --no-cache --upgrade curl bash && chmod +x fetch.sh
+
+CMD ./fetch.sh
